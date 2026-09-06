@@ -1,11 +1,14 @@
 /**
- * Site-wide configuration a non-developer can edit from `/admin/settings`.
+ * Site-wide configuration a superadmin can edit from `/superadmin/settings`.
  *
- * Split into a public content shape and a secrets shape on purpose: `business`
- * and `chat` are safe to thread into Client Component props, but
- * `integrations` holds live credentials and must only ever cross into a
- * client render through `toSafeSettingsView()` in `mask.ts`.
+ * Split three ways, matching the three pages that edit it: `business` is
+ * contact content, `chat` is assistant behaviour, and `system` holds deployment
+ * credentials. The first two are safe to thread into Client Component props;
+ * `system` holds live secrets and must only ever cross into a client render
+ * through `toSafeSettingsView()` in `mask.ts`.
  */
+
+import { MANAGED_ENV_KEYS, type ManagedEnvKey } from "./env";
 
 export type BusinessInfo = {
   companyName: string;
@@ -33,35 +36,42 @@ export type ChatConfig = {
   maxHistoryTurns: number;
   rateLimitWindowMs: number;
   rateLimitMaxRequests: number;
+  /** Passages retrieved per question. Was `DEFAULT_LIMIT` in `chat/knowledge.ts`. */
+  retrievalLimit: number;
+  /**
+   * Cosine floor, 0..1, below which a passage counts as "not covered" rather
+   * than "the closest thing we have". Was `DEFAULT_MIN_SIMILARITY`.
+   *
+   * Measured against this corpus and this embedding model, not chosen from a
+   * textbook — see the note at the old constant in `chat/knowledge.ts`. It
+   * means nothing if either changes, which is why the form says so.
+   */
+  minSimilarity: number;
 };
 
 /**
- * The database connection deliberately does NOT appear here, and is not
- * admin-editable at all: `SiteSettings` is persisted *through* it (see
- * `store.ts`), so a value telling the app where settings live would itself
- * live inside settings. `SUPABASE_URL` / `SUPABASE_SECRET_KEY` are environment
- * variables and nothing else.
+ * Deployment credentials, stored as `system.<ENV_VAR_NAME>` rows so the key in
+ * the database is the same string as the key in `.env` and there is nothing to
+ * translate between them.
  *
- * `DEEPSEEK_API_KEY` is absent for a related reason: the chat assistant is not
- * an integration the site can be pointed at any more, it is part of the app
- * (src/lib/chat/), and its key is a deployment credential like the database's.
- * The n8n webhook URL that used to live here went away with the workflow —
- * migration 0004 deletes the stored row.
+ * An empty value means "not overridden" — `resolveEnv()` in `env.ts` falls
+ * through to `process.env`, so a deployment that never opens the settings page
+ * behaves exactly as it did before this existed.
+ *
+ * The Supabase connection is deliberately absent, and is not editable at all:
+ * `SiteSettings` is persisted *through* it (see `store.ts`), so a value telling
+ * the app where settings live would itself live inside settings.
+ * `SUPABASE_URL` / `SUPABASE_SECRET_KEY` / `SUPABASE_PUBLISHABLE_KEY` are
+ * environment variables and nothing else, and the System Config page shows them
+ * read-only for that reason.
  */
-export type IntegrationSettings = {
-  /** Not secret, but changing it here requires an env var update + restart — see plasmic-init.ts. */
-  plasmicProjectId: string;
-  /** Secret. */
-  plasmicApiToken: string;
-};
+export type SystemConfig = Record<ManagedEnvKey, string>;
 
 export type SiteSettings = {
   business: BusinessInfo;
   chat: ChatConfig;
-  integrations: IntegrationSettings;
+  system: SystemConfig;
 };
 
-/** Fields in `IntegrationSettings` that must never round-trip to a client render in plaintext. */
-export const SECRET_KEYS = ["plasmicApiToken"] as const;
-
-export type SecretKey = (typeof SECRET_KEYS)[number];
+export { MANAGED_ENV_KEYS };
+export type { ManagedEnvKey };

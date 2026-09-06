@@ -17,6 +17,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import ChatCapture from "./ChatCapture";
+import type { ChatCaptureTemplates } from "@/lib/content/types";
 
 /**
  * The markdown parser is a good deal larger than the panel it serves, and most
@@ -94,6 +95,8 @@ function newId(): string {
 }
 
 type ChatWidgetProps = {
+  /** The handover cards, as the Content Management page has them. */
+  captureCopy?: ChatCaptureTemplates;
   greeting?: string;
   suggestions?: string[];
   maxMessageChars?: number;
@@ -101,6 +104,7 @@ type ChatWidgetProps = {
 };
 
 export default function ChatWidget({
+  captureCopy,
   greeting = DEFAULT_GREETING,
   suggestions = DEFAULT_SUGGESTIONS,
   maxMessageChars = DEFAULT_MAX_MESSAGE_CHARS,
@@ -480,6 +484,7 @@ export default function ChatWidget({
                 cited={capture.cited}
                 sessionId={capture.sessionId}
                 trigger={capture.trigger}
+                copy={captureCopy}
                 onDone={(reference) => {
                   closeCapture();
                   setMessages((current) => [

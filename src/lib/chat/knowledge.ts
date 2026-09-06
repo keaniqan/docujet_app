@@ -13,7 +13,7 @@
  * travel further from the query that reads them.
  *
  * Two writers, one table. The importer seeds and refreshes from the Q&A sheet;
- * a person edits in /admin/settings. `ADMIN_SOURCE` below is the whole of the
+ * a person edits in /superadmin/settings/chatbot. `ADMIN_SOURCE` below is the whole of the
  * protocol between them.
  *
  * Both halves go through the secret-key client, so this module is server-side
@@ -212,7 +212,8 @@ export async function storedDocumentIndex(): Promise<Map<string, StoredDocument>
  *
  * It lives here rather than in the ingest script because the admin editor
  * writes documents too, and two definitions of "changed" would mean an entry
- * saved from /admin/settings looked stale to the importer the moment it landed.
+ * saved from /superadmin/settings/chatbot looked stale to the importer the
+ * moment it landed.
  * The separator is a NUL because it cannot occur in any of the three fields,
  * so no combination of them can collide with another.
  */
@@ -286,7 +287,7 @@ export async function replaceDocument(
  * Removes documents outright.
  *
  * The only way anything leaves the knowledge base now that the importer no
- * longer prunes: a delete is something a person does in /admin/settings, on
+ * longer prunes: a delete is something a person does in /superadmin/settings/chatbot, on
  * purpose, to an entry they have read. The chunks go with the document — the
  * foreign key cascades — so the assistant cannot be left quoting a passage
  * whose entry is gone.
@@ -304,7 +305,7 @@ export async function deleteDocuments(ids: string[]): Promise<void> {
 // The admin editor's view
 // ---------------------------------------------------------------------------
 
-/** One row of the table in /admin/settings. */
+/** One row of the table in /superadmin/settings/chatbot. */
 export type KnowledgeEntry = KnowledgeDocument & {
   updatedAt: string;
 };

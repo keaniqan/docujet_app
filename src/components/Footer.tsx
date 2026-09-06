@@ -10,6 +10,14 @@ type FooterProps = {
   email?: string;
   address?: string;
   hours?: string;
+  /**
+   * Social profiles, from the Content Management page.
+   *
+   * Empty renders nothing at all rather than an empty heading — the site has
+   * never had these, and a "Follow us" with no links under it is worse than
+   * the footer it replaces.
+   */
+  socialLinks?: { label: string; url: string }[];
 };
 
 export default function Footer({
@@ -21,6 +29,7 @@ export default function Footer({
   email = footerPlaceholders.email,
   address = footerPlaceholders.office,
   hours = footerPlaceholders.hours,
+  socialLinks = [],
 }: FooterProps) {
   return (
     <footer
@@ -70,6 +79,25 @@ export default function Footer({
               <h3 className="font-semibold text-slate-950">Business Hours</h3>
               <p className="mt-2">{hours}</p>
             </div>
+            {socialLinks.length > 0 ? (
+              <div>
+                <h3 className="font-semibold text-slate-950">Follow us</h3>
+                <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  {socialLinks.map((link) => (
+                    <li key={link.url}>
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="transition hover:text-slate-950"
+                      >
+                        {link.label || link.url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         </div>
 

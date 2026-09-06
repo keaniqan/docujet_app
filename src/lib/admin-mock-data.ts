@@ -47,24 +47,21 @@ export type AdminService = {
   lastUpdated: string;
 };
 
-export type ContentCard = {
-  title: string;
-  description: string;
-  actionLabel: string;
-  plasmicUrl: string;
-};
-
-export type IntegrationStatus = "Not configured" | "Planned" | "Connected";
 
 export const adminNavItems = [
   { label: "Dashboard", href: "/admin" },
   { label: "Appointments", href: "/admin/appointments" },
   { label: "Leads", href: "/admin/leads" },
-  { label: "Settings", href: "/admin/settings" },
 ] as const;
 
+// Settings is superadmin-only now, and split three ways. AdminSidebar filters
+// every /superadmin/* entry out for an ordinary admin, so this one list serves
+// both roles.
 export const superadminNavItems = [
   ...adminNavItems,
+  { label: "System Config", href: "/superadmin/settings/system" },
+  { label: "Chatbot Config", href: "/superadmin/settings/chatbot" },
+  { label: "Content", href: "/superadmin/settings/cms" },
   { label: "Staff Accounts", href: "/superadmin/users" },
   { label: "Appointment Availability", href: "/superadmin/availability" },
 ] as const;
@@ -187,61 +184,4 @@ export const adminServices: AdminService[] = [
   },
 ];
 
-export const contentCards: ContentCard[] = [
-  {
-    title: "Homepage",
-    description: "Hero, key benefits, service highlights, CTA sections, and FAQ preview.",
-    actionLabel: "Edit Content",
-    plasmicUrl: "https://studio.plasmic.app/project/docujet-placeholder-home",
-  },
-  {
-    title: "Services",
-    description: "Service summaries, consultation CTA, and reusable service content blocks.",
-    actionLabel: "Edit Content",
-    plasmicUrl: "https://studio.plasmic.app/project/docujet-placeholder-services",
-  },
-  {
-    title: "FAQ",
-    description: "Common business questions, accordion entries, and support messaging.",
-    actionLabel: "Edit Content",
-    plasmicUrl: "https://studio.plasmic.app/project/docujet-placeholder-faq",
-  },
-  {
-    title: "Contact",
-    description: "Contact prompts, placeholders, and booking CTA references.",
-    actionLabel: "Edit Content",
-    plasmicUrl: "https://studio.plasmic.app/project/docujet-placeholder-contact",
-  },
-];
 
-export const integrationStatuses: Array<{
-  name: string;
-  status: IntegrationStatus;
-  description: string;
-}> = [
-  {
-    name: "Plasmic",
-    status: "Connected",
-    description: "Public site content components are already registered for visual editing.",
-  },
-  {
-    // Status is fixed copy here and replaced by the Settings page, which can
-    // see whether the key is actually set — same treatment as Supabase below.
-    name: "DeepSeek",
-    status: "Not configured",
-    description:
-      "Answers the website assistant. It reads the knowledge base in kb_chunks, which is " +
-      "rebuilt by `npm run kb:ingest`.",
-  },
-  {
-    // The only row here whose status is not fixed copy — the Settings page
-    // replaces it with the live answer, because a sidebar claiming the
-    // database is unwired next to a page reading from it is worse than no
-    // sidebar at all.
-    name: "Supabase",
-    status: "Not configured",
-    description:
-      "Leads and site settings are stored in Postgres. Authentication is not wired up yet, " +
-      "so /admin is unprotected.",
-  },
-];

@@ -6,6 +6,7 @@ import LeadTracker from "@/components/crm/LeadTracker";
 import { resolveToday } from "@/lib/crm/analytics";
 import { getKnowledgeGaps } from "@/lib/chat/capture";
 import { getCurrentStaffProfile } from "@/lib/supabase/authorization";
+import { getContentSafe } from "@/lib/content/store";
 import { getSettingsSafe } from "@/lib/settings/store";
 import { fetchLeadEvents, fetchLeads, isSupabaseConfigured } from "@/lib/crm/leads";
 import type { Lead, LeadAppointment, LeadEvent } from "@/lib/crm/types";
@@ -31,9 +32,10 @@ export default async function AdminLeadsPage({ className }: AdminLeadsPageProps)
   // drafts use these — a follow-up signed off with the company alone reads as
   // a mailshot, and the company name is admin-editable so it cannot be a
   // literal in the drafter. Both degrade to a sensible default.
-  const [profile, settings] = await Promise.all([
+  const [profile, settings, content] = await Promise.all([
     getCurrentStaffProfile().catch(() => null),
     getSettingsSafe(),
+    getContentSafe(),
   ]);
   const viewer = {
     name: profile?.full_name ?? null,
@@ -69,7 +71,7 @@ export default async function AdminLeadsPage({ className }: AdminLeadsPageProps)
 
       // Only the headline, not the list: the finding says how many questions
       // went unanswered and what the commonest was, and the list itself lives
-      // on /admin/settings next to the editor that fixes it.
+      // on /superadmin/settings/chatbot next to the editor that fixes it.
       const report = await getKnowledgeGaps(1);
       if (report.error === null && report.total > 0) {
         kbGaps = { total: report.total, topTheme: report.gaps[0]?.question ?? null };
@@ -125,11 +127,17 @@ export default async function AdminLeadsPage({ className }: AdminLeadsPageProps)
               events={events}
               kbGaps={kbGaps}
               viewer={viewer}
+              outreachTemplates={content.outreach}
               today={today}
               autoLoad={false}
             />
           ) : (
-            <LeadTracker viewer={viewer} today={today} autoLoad={false} />
+            <LeadTracker
+              viewer={viewer}
+              outreachTemplates={content.outreach}
+              today={today}
+              autoLoad={false}
+            />
           )}
         </Suspense>
       </div>

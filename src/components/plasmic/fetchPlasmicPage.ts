@@ -1,20 +1,7 @@
-import { PLASMIC } from "@/plasmic-init";
+import { getServerPlasmicLoader, PLASMIC } from "@/plasmic-init";
+import { resolveEnvMany } from "@/lib/settings/resolve";
 
 type PlasmicPageData = Awaited<ReturnType<typeof PLASMIC.maybeFetchComponentData>>;
-
-/**
- * True when both halves of the Plasmic credential are present.
- *
- * `plasmic-init.ts` asserts them non-null (`process.env.PLASMIC_PROJECT_ID!`),
- * which is a promise the environment does not have to keep — a deployment whose
- * environment variables were never filled in hands the loader `undefined` for
- * both and it happily builds a request to fetch project "undefined".
- */
-function isPlasmicConfigured(): boolean {
-  return Boolean(
-    process.env.PLASMIC_PROJECT_ID?.trim() && process.env.PLASMIC_API_TOKEN?.trim(),
-  );
-}
 
 /**
  * Fetches a page's Plasmic design, or `null` when there is nothing to fetch.
@@ -23,8 +10,7 @@ function isPlasmicConfigured(): boolean {
  * "maybe" only covers a project that has no such page: it throws on a missing
  * credential, a rejected token, and a Plasmic outage alike. Those all reached
  * `next build` as a prerender error, which is how a blank environment variable
- * turned into a failed deployment rather than into the coded fallback pages
- * that `.env.example` promises.
+ * turned into a failed deployment rather than into the coded fallback pages.
  *
  * So all three are treated the same way here, and the same way as "this page is
  * not in the project": return null, and let the caller render the version of
@@ -33,18 +19,30 @@ function isPlasmicConfigured(): boolean {
  *
  * Logged rather than swallowed — falling back is fine, doing so silently for a
  * month is not.
+ *
+ * The credentials come from `resolveEnvMany`, not `process.env`: they are
+ * editable on /superadmin/settings/system, and this is the only place in the
+ * app where they are actually used to fetch anything. `getServerPlasmicLoader()`
+ * hands back the module-level loader unchanged whenever the resolved pair is
+ * the environment pair, which is the ordinary case.
  */
 export async function fetchPlasmicPage(path: string): Promise<PlasmicPageData> {
-  if (!isPlasmicConfigured()) {
+  const { PLASMIC_PROJECT_ID, PLASMIC_API_TOKEN } = await resolveEnvMany([
+    "PLASMIC_PROJECT_ID",
+    "PLASMIC_API_TOKEN",
+  ] as const);
+
+  if (!PLASMIC_PROJECT_ID || !PLASMIC_API_TOKEN) {
     console.warn(
-      `[plasmic] PLASMIC_PROJECT_ID / PLASMIC_API_TOKEN are not set — rendering ${path} from ` +
+      `[plasmic] no project id / API token is configured — rendering ${path} from ` +
         "src/components/pages/ instead of the Studio design.",
     );
     return null;
   }
 
   try {
-    return await PLASMIC.maybeFetchComponentData(path);
+    const loader = await getServerPlasmicLoader();
+    return await loader.maybeFetchComponentData(path);
   } catch (cause) {
     console.warn(
       `[plasmic] could not fetch ${path}, falling back to the coded page:`,

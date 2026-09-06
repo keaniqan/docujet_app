@@ -13,6 +13,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
+import type { OutreachTemplates } from "@/lib/content/types";
 import type { StageActionResult } from "@/lib/crm/actions";
 import {
   buildContactLog,
@@ -32,6 +33,7 @@ import {
   type ChartKey,
   type Insight,
 } from "@/lib/crm/insights";
+import { DEFAULT_OUTREACH_TEMPLATES } from "@/lib/crm/outreach-templates";
 import { buildHref, isFiltered, parseQuery, type TrackerQuery } from "@/lib/crm/query";
 import {
   buildQueue,
@@ -129,6 +131,8 @@ export type TrackerValue = {
   scoreFor: (leadId: string) => LeadScore | null;
   /** Who is looking, for signing outreach off. Falls back to the business name. */
   viewer: { name: string | null; companyName: string };
+  /** The follow-up drafts, as the Content Management page has them. */
+  outreachTemplates: OutreachTemplates;
 
   query: TrackerQuery;
   view: ViewKey;
@@ -190,6 +194,14 @@ export type TrackerOptions = {
    * a stale name in a message going out to a customer.
    */
   viewer?: { name: string | null; companyName: string };
+  /**
+   * The editable follow-up drafts.
+   *
+   * Read on the server and passed down, like `viewer`. Absent on a
+   * Plasmic-authored tracker, which has no server component above it — the
+   * shipped drafts are the right fallback there.
+   */
+  outreachTemplates?: OutreachTemplates;
   /**
    * With no `leads` prop, read the book from `/api/crm/leads` in the browser.
    *
@@ -502,6 +514,7 @@ function useTrackerState(options: TrackerOptions, dormant = false): TrackerValue
     insightFor,
     scoreFor,
     viewer: options.viewer ?? ANONYMOUS_VIEWER,
+    outreachTemplates: options.outreachTemplates ?? DEFAULT_OUTREACH_TEMPLATES,
     query,
     view,
     today,

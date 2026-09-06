@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { explain, type GlossaryEntry } from "@/lib/crm/glossary";
+import { useGlossaryEntry } from "./GlossaryContext";
+import type { GlossaryEntry } from "@/lib/crm/glossary";
 import type { ReactNode } from "react";
 
 /**
@@ -295,7 +296,7 @@ export type ExplainProps = {
  * on the page.
  */
 export default function Explain({ term, detail, label, className = "" }: ExplainProps) {
-  const entry = explain(term);
+  const entry = useGlossaryEntry(term);
   const { isOpen, triggerProps, portal, toggle } = useExplainer(entry, OPEN_DELAY.dot, detail);
 
   if (!entry) return null;
@@ -361,7 +362,7 @@ export function ExplainOn({
   display = "inline-flex",
   className = "",
 }: ExplainOnProps) {
-  const entry = explain(term);
+  const entry = useGlossaryEntry(term);
   const { triggerProps, portal } = useExplainer(entry, OPEN_DELAY.wrap, detail);
 
   if (!entry) return <>{children}</>;

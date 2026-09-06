@@ -32,10 +32,12 @@ const statusStyles: Record<string, string> = {
   Draft: "bg-slate-200 text-slate-700",
   Disabled: "bg-rose-100 text-rose-800",
   "Not configured": "bg-slate-200 text-slate-700",
-  // Where a settings value's live copy actually came from.
-  "Saved on server": "bg-emerald-100 text-emerald-800",
-  "Saved in browser": "bg-amber-100 text-amber-800",
-  "From .env": "bg-sky-100 text-sky-800",
+  // Where a System Config value's live copy actually came from. These replaced
+  // "Saved on server" / "Saved in browser" / "From .env", which were left over
+  // from an earlier settings implementation that kept local overrides in the
+  // browser and had gone unused everywhere.
+  Database: "bg-emerald-100 text-emerald-800",
+  Environment: "bg-sky-100 text-sky-800",
   Planned: "bg-amber-100 text-amber-800",
   Connected: "bg-emerald-100 text-emerald-800",
 };

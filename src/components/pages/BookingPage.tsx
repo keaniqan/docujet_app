@@ -5,6 +5,9 @@ type BookingPageProps = {
   pageTitle?: string;
   pageDescription?: string;
   introTitle?: string;
+  /** The booking form's two dropdowns, from the Content Management page. */
+  products?: string[];
+  types?: string[];
 };
 
 export default function BookingPage({
@@ -12,6 +15,8 @@ export default function BookingPage({
   pageTitle = "Schedule a WorkForce Enterprise consultation",
   pageDescription = "Use the form below to request a product consultation, demonstration, pricing discussion, or technical review for the Epson WorkForce Enterprise WF-C20600, WF-C20750, and WF-C21000.",
   introTitle = "What to prepare before booking",
+  products,
+  types,
 }: BookingPageProps) {
   return (
     <main className={`w-full min-w-0 ${className ?? ""}`}>
@@ -51,7 +56,7 @@ export default function BookingPage({
             </div>
           </div>
 
-          <BookingForm />
+          <BookingForm products={products} types={types} />
         </div>
       </section>
     </main>

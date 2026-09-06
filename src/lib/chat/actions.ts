@@ -1,7 +1,7 @@
 "use server";
 
 /**
- * Knowledge base edits, from /admin/settings.
+ * Knowledge base edits, from /superadmin/settings/chatbot.
  *
  * Mirrors `src/lib/crm/actions.ts`'s shape: read the input, write through the
  * store, refresh, report ok/message rather than throwing. A failed embed or an
@@ -16,6 +16,8 @@
  */
 
 import { refresh } from "next/cache";
+
+import { assertSuperadmin } from "@/lib/supabase/authorization";
 
 import {
   ADMIN_SOURCE,
@@ -44,6 +46,25 @@ const MAX_ANSWER_CHARS = 4000;
 
 function failure(cause: unknown, fallback: string): KnowledgeActionResult {
   return { ok: false, message: cause instanceof Error ? cause.message : fallback };
+}
+
+const DENIED = "Only a superadmin can edit the knowledge base.";
+
+/**
+ * The guard, as a result rather than a throw.
+ *
+ * `src/proxy.ts` protects the page these are called from, but not the actions
+ * themselves — a Server Action is a POST addressable by its action id, and
+ * everything below writes with the RLS-bypassing service client. Returns
+ * `null` when the caller may proceed.
+ */
+async function denied(): Promise<KnowledgeActionResult | null> {
+  try {
+    await assertSuperadmin(DENIED);
+    return null;
+  } catch (cause) {
+    return failure(cause, DENIED);
+  }
 }
 
 /**
@@ -84,6 +105,9 @@ function newEntryId(question: string, taken: Set<string>): string {
 export async function addKnowledgeEntryAction(
   formData: FormData,
 ): Promise<KnowledgeActionResult> {
+  const refusal = await denied();
+  if (refusal) return refusal;
+
   const question = String(formData.get("question") ?? "").trim();
   const answer = String(formData.get("answer") ?? "").trim();
   const keywords = String(formData.get("keywords") ?? "")
@@ -142,6 +166,9 @@ export async function updateKnowledgeEntryAction(
   field: EditableKnowledgeField,
   value: string,
 ): Promise<KnowledgeActionResult> {
+  const refusal = await denied();
+  if (refusal) return refusal;
+
   const next = value.trim();
 
   if (next === "") {
@@ -197,6 +224,9 @@ export async function updateKnowledgeEntryAction(
  * will put this back, and nothing else remembers it. The UI asks first.
  */
 export async function deleteKnowledgeEntryAction(id: string): Promise<KnowledgeActionResult> {
+  const refusal = await denied();
+  if (refusal) return refusal;
+
   try {
     await deleteDocuments([id]);
     refresh();

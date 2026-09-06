@@ -15,6 +15,7 @@
  * and the route that calls this is the only caller.
  */
 
+import { resolveManagedEnv } from "../settings/resolve";
 import { getSettingsSafe } from "../settings/store";
 import { retrieveContext } from "./knowledge";
 import { buildMessages, type ChatTurn } from "./prompt";
@@ -84,15 +85,20 @@ const UNAVAILABLE =
   "The assistant is unavailable right now. Please try again in a moment, or " +
   "book an appointment and we will follow up directly.";
 
-function apiKey(): string {
-  const key = process.env.DEEPSEEK_API_KEY?.trim();
-
+/**
+ * The assistant's credential.
+ *
+ * Takes the already-resolved value rather than reading it: `askAssistant` needs
+ * settings anyway for the business block and the brief, and a second read here
+ * would be a second query for a row it is already holding.
+ */
+function requireApiKey(key: string): string {
   if (!key) {
     // Deployment mistake, not an outage. It is the one failure here that never
     // fixes itself, so it is logged as an error rather than a warning.
     console.error(
       "[chat] DEEPSEEK_API_KEY is not set. The assistant cannot answer anything until it is. " +
-        "See .env.example.",
+        "Set it in /superadmin/settings/system, or in the server environment.",
     );
     throw new ChatError(UNAVAILABLE, 503);
   }
@@ -143,14 +149,16 @@ export async function askAssistant({
   page,
   history = [],
 }: AskOptions): Promise<AssistantAnswer> {
-  const key = apiKey();
+  // Read first rather than alongside the search: retrieval's reach and floor
+  // are admin-editable now, so the search cannot start until settings are in.
+  // This is the cheap query of the two, and the model call dwarfs both.
+  const settings = await getSettingsSafe();
+  const key = requireApiKey(resolveManagedEnv(settings, "DEEPSEEK_API_KEY"));
 
-  // Both are needed before the call and neither depends on the other: the
-  // business block comes from settings, the passages from the vector search.
-  const [settings, context] = await Promise.all([
-    getSettingsSafe(),
-    retrieveContext(message),
-  ]);
+  const context = await retrieveContext(message, {
+    limit: settings.chat.retrievalLimit,
+    minSimilarity: settings.chat.minSimilarity,
+  });
 
   const messages = buildMessages({
     question: message,
@@ -170,7 +178,7 @@ export async function askAssistant({
         Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        model: process.env.DEEPSEEK_MODEL?.trim() || DEFAULT_MODEL,
+        model: resolveManagedEnv(settings, "DEEPSEEK_MODEL") || DEFAULT_MODEL,
         messages,
         // Thinking is on by default at `high` effort, which is both slower than
         // a visitor will sit through and wasted on "which model prints faster".

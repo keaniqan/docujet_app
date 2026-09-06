@@ -18,17 +18,27 @@ type FormValues = {
 
 type FormErrors = Partial<Record<keyof FormValues, string>>;
 
-const initialValues: FormValues = {
-  fullName: "",
-  companyName: "",
-  email: "",
-  phoneNumber: "",
-  productOfInterest: bookingProducts[0],
-  appointmentType: bookingTypes[0],
-  preferredDate: "",
-  preferredTime: "",
-  additionalNotes: "",
-};
+/**
+ * A blank form.
+ *
+ * Takes the two dropdown lists rather than closing over the module-level ones,
+ * because both are editable from the Content Management page now and the
+ * pre-selected option has to be the first entry of the list actually rendered —
+ * not the first entry of the list that shipped.
+ */
+function initialValues(products: string[], types: string[]): FormValues {
+  return {
+    fullName: "",
+    companyName: "",
+    email: "",
+    phoneNumber: "",
+    productOfInterest: products[0] ?? "",
+    appointmentType: types[0] ?? "",
+    preferredDate: "",
+    preferredTime: "",
+    additionalNotes: "",
+  };
+}
 
 function validate(values: FormValues): FormErrors {
   const errors: FormErrors = {};
@@ -57,8 +67,18 @@ function validate(values: FormValues): FormErrors {
   return errors;
 }
 
-export default function BookingForm() {
-  const [values, setValues] = useState<FormValues>(initialValues);
+export type BookingFormProps = {
+  /** The "product of interest" options. Defaults to what ships in site-data.ts. */
+  products?: string[];
+  /** The "appointment type" options. Same default. */
+  types?: string[];
+};
+
+export default function BookingForm({
+  products = bookingProducts,
+  types = bookingTypes,
+}: BookingFormProps = {}) {
+  const [values, setValues] = useState<FormValues>(() => initialValues(products, types));
   const [errors, setErrors] = useState<FormErrors>({});
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
@@ -191,7 +211,7 @@ export default function BookingForm() {
       }
     }
 
-    setValues(initialValues);
+    setValues(initialValues(products, types));
     setSubmitted(true);
   }
 
@@ -276,7 +296,7 @@ export default function BookingForm() {
               }
               className={inputClassName}
             >
-              {bookingProducts.map((product) => (
+              {products.map((product) => (
                 <option key={product} value={product}>
                   {product}
                 </option>
@@ -297,7 +317,7 @@ export default function BookingForm() {
               }
               className={inputClassName}
             >
-              {bookingTypes.map((type) => (
+              {types.map((type) => (
                 <option key={type} value={type}>
                   {type}
                 </option>

@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentStaffProfile } from "@/lib/supabase/authorization";
+import { assertSuperadmin } from "@/lib/supabase/authorization";
+import { recordAudit } from "@/lib/superadmin";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase/service";
 
 export type SuperadminActionState = {
@@ -12,31 +13,11 @@ export type SuperadminActionState = {
 const initialState: SuperadminActionState = { error: null, success: null };
 
 async function requireActionSuperadmin() {
-  const profile = await getCurrentStaffProfile();
-  if (!profile || profile.role !== "superadmin") {
-    throw new Error("You are not authorized to manage staff accounts.");
-  }
-  return profile;
+  return assertSuperadmin("You are not authorized to manage staff accounts.");
 }
 
 export async function toggleStaffUserFromForm(formData: FormData): Promise<void> {
   await toggleStaffUser(undefined, formData);
-}
-
-async function recordAudit(
-  actorId: string,
-  action: string,
-  targetType: string,
-  targetId: string | null,
-  details: Record<string, unknown> = {},
-) {
-  await supabase().from("audit_logs").insert({
-    actor_id: actorId,
-    action,
-    target_type: targetType,
-    target_id: targetId,
-    details,
-  });
 }
 
 export async function createStaffUser(

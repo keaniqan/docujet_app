@@ -2,10 +2,10 @@
  * What the assistant is made to know, and how it is cut up.
  *
  * All of it pure: callers do the reading and the writing, this module does the
- * deciding. `npm run kb:ingest` uses the whole file; the admin editor in
- * /admin/settings uses the Q&A format/parse pair, `knowledgeSlug()` and
- * `chunkText()`, so that an entry a person types is shaped exactly like an
- * entry the importer produced.
+ * deciding. `npm run kb:ingest` uses the whole file; the editor in
+ * /superadmin/settings/chatbot uses the Q&A format/parse pair,
+ * `knowledgeSlug()` and `chunkText()`, so an entry a person types is shaped
+ * exactly like an entry the importer produced.
  *
  *   1. `qnaDocuments()` turns the curated Q&A sheet (data/epson workforce
  *      rag.csv) into documents. This is the assistant's real knowledge: 111
@@ -43,7 +43,8 @@ import type { KnowledgeDocument } from "./knowledge";
 export const SITE_DATA_SOURCE = "site-data";
 
 /**
- * Source label on anything a person has added or edited in /admin/settings.
+ * Source label on anything a person has added or edited in
+ * /superadmin/settings/chatbot.
  *
  * The whole protocol between the two writers of `kb_documents`: the importer
  * refuses to touch a document carrying this, so a correction made by hand is
@@ -226,7 +227,7 @@ export type QnaContent = {
  *
  * Paired with `parseQnaContent()` below, and the only place this shape is
  * written. It matters that there is exactly one definition: the sheet importer
- * produces it, the admin editor in /admin/settings reads it back apart and
+ * produces it, the admin editor in /superadmin/settings/chatbot reads it back apart and
  * writes it again, and a drift between those two would quietly turn an edited
  * answer into an unparseable blob.
  */

@@ -1,15 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentStaffProfile } from "@/lib/supabase/authorization";
+import { assertSuperadmin } from "@/lib/supabase/authorization";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase/service";
 
 export type AvailabilityActionState = { error: string | null; success: string | null };
 const initialState: AvailabilityActionState = { error: null, success: null };
 async function requireManager() {
-  const profile = await getCurrentStaffProfile();
-  if (!profile || profile.role !== "superadmin") throw new Error("You are not authorized to manage appointment availability.");
-  return profile;
+  return assertSuperadmin("You are not authorized to manage appointment availability.");
 }
 function validateTime(start: string, end: string) {
   const parse = (value: string) => { const match = /^(\d{2}):(\d{2})$/.exec(value); if (!match || Number(match[2]) % 30) return null; return Number(match[1]) * 60 + Number(match[2]); };

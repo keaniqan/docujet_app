@@ -12,7 +12,8 @@
 
 import { isSupabaseConfigured, supabase } from "../supabase/service";
 import { DEFAULT_SETTINGS } from "./defaults";
-import type { SiteSettings } from "./types";
+import { MANAGED_ENV_KEYS } from "./env";
+import type { SiteSettings, SystemConfig } from "./types";
 
 const TABLE = "app_settings";
 
@@ -70,11 +71,15 @@ function mergeEntries(rows: [string, string][]): SiteSettings {
       maxHistoryTurns: numberOr(get("chat.maxHistoryTurns"), base.chat.maxHistoryTurns),
       rateLimitWindowMs: numberOr(get("chat.rateLimitWindowMs"), base.chat.rateLimitWindowMs),
       rateLimitMaxRequests: numberOr(get("chat.rateLimitMaxRequests"), base.chat.rateLimitMaxRequests),
+      retrievalLimit: numberOr(get("chat.retrievalLimit"), base.chat.retrievalLimit),
+      minSimilarity: numberOr(get("chat.minSimilarity"), base.chat.minSimilarity),
     },
-    integrations: {
-      plasmicProjectId: get("integrations.plasmicProjectId") ?? base.integrations.plasmicProjectId,
-      plasmicApiToken: get("integrations.plasmicApiToken") ?? base.integrations.plasmicApiToken,
-    },
+    // Iterated rather than listed: the stored key is `system.` + the
+    // environment variable's own name, so there is nothing per-key to write
+    // down and adding a credential is a one-line change to MANAGED_ENV_KEYS.
+    system: Object.fromEntries(
+      MANAGED_ENV_KEYS.map((key) => [key, get(`system.${key}`) ?? base.system[key]]),
+    ) as SystemConfig,
   };
 }
 

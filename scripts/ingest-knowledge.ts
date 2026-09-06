@@ -29,9 +29,9 @@
  * ---------------------------------------------------------------------------
  * This script seeds and refreshes. It does not own the knowledge base.
  *
- * The database is the source of truth, and /admin/settings is where entries are
- * added, corrected and removed. Two consequences worth knowing before running
- * this:
+ * The database is the source of truth, and /superadmin/settings/chatbot is
+ * where entries are added, corrected and removed. Two consequences worth
+ * knowing before running this:
  *
  *   - It never deletes. Removing a row from the sheet leaves the entry in the
  *     database; deleting it is something a person does in the admin screen.
@@ -175,7 +175,7 @@ async function main(): Promise<void> {
 
   const stored = await storedDocumentIndex();
 
-  // Entries a person has added or corrected in /admin/settings. The sheet has
+  // Entries a person has added or corrected in /superadmin/settings/chatbot. The sheet has
   // no claim on them: re-importing over a deliberate correction is exactly the
   // failure this rule exists to prevent.
   const owned = documents.filter((document) => stored.get(document.id)?.source === ADMIN_SOURCE);

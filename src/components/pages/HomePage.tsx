@@ -4,15 +4,23 @@ import CallToAction from "@/components/CallToAction";
 import Hero from "@/components/Hero";
 import ServicesSection from "@/components/ServicesSection";
 
-import {
-  benefitItems,
-  faqItems,
-  whyChooseItems,
-} from "@/lib/site-data";
+import { DEFAULT_CONTENT } from "@/lib/content/defaults";
+import type { BenefitItem } from "@/lib/content/types";
+import type { FaqItem, ServiceItem } from "@/lib/site-data";
+
+/**
+ * The copy this page ships with.
+ *
+ * Read from the content defaults rather than written as prop defaults, so the
+ * strings a Plasmic editor sees, the strings the Content Management page
+ * restores, and the strings an unconfigured deployment renders are one set.
+ */
+const shipped = DEFAULT_CONTENT.landing;
 
 type HomePageProps = {
   className?: string;
 
+  heroEyebrow?: string;
   heroTitle?: string;
   heroDescription?: string;
 
@@ -22,49 +30,66 @@ type HomePageProps = {
   secondaryButtonText?: string;
   secondaryButtonUrl?: string;
 
+  benefitsEyebrow?: string;
   benefitsHeading?: string;
 
-  whyChooseHeading?: string;
+  servicesHeading?: string;
+  servicesDescription?: string;
 
+  whyChooseEyebrow?: string;
+  whyChooseHeading?: string;
+  whyChooseBody?: string;
+  whyChooseItems?: string[];
+
+  faqEyebrow?: string;
   faqHeading?: string;
 
   ctaTitle?: string;
   ctaDescription?: string;
   ctaButtonText?: string;
   ctaButtonUrl?: string;
+
+  /** The lists, from the Content Management page. Default to what ships. */
+  benefits?: BenefitItem[];
+  services?: ServiceItem[];
+  faq?: FaqItem[];
 };
 
 export default function HomePage({
   className,
 
-  heroTitle = "Shaping the Future of Business Printing with Heat-Free Technology",
+  heroEyebrow = shipped.heroEyebrow,
+  heroTitle = shipped.heroTitle,
+  heroDescription = shipped.heroDescription,
 
-  heroDescription =
-    "Powered by Epson Heat-Free Technology, the WorkForce Enterprise WF-C20600, WF-C20750, and WF-C21000 provide consistent high-speed printing, lower power consumption, and fewer replacement parts for demanding business environments.",
+  primaryButtonText = shipped.primaryButtonText,
+  primaryButtonUrl = shipped.primaryButtonUrl,
 
-  primaryButtonText = "Book a Product Consultation",
-  primaryButtonUrl = "/booking",
+  secondaryButtonText = shipped.secondaryButtonText,
+  secondaryButtonUrl = shipped.secondaryButtonUrl,
 
-  secondaryButtonText = "Explore the Models",
-  secondaryButtonUrl = "/services",
+  benefitsEyebrow = shipped.benefitsEyebrow,
+  benefitsHeading = shipped.benefitsHeading,
 
-  benefitsHeading =
-    "Built around enterprise speed, low intervention, and Heat-Free efficiency",
+  servicesHeading = shipped.servicesHeading,
+  servicesDescription = shipped.servicesDescription,
 
-  whyChooseHeading =
-    "Why organisations choose the WorkForce Enterprise platform",
+  whyChooseEyebrow = shipped.whyChooseEyebrow,
+  whyChooseHeading = shipped.whyChooseHeading,
+  whyChooseBody = shipped.whyChooseBody,
+  whyChooseItems = shipped.whyChooseItems,
 
-  faqHeading =
-    "Common questions about the Epson WorkForce Enterprise range",
+  faqEyebrow = shipped.faqEyebrow,
+  faqHeading = shipped.faqHeading,
 
-  ctaTitle =
-    "Ready to review the right model for your print volume?",
+  ctaTitle = shipped.ctaTitle,
+  ctaDescription = shipped.ctaDescription,
+  ctaButtonText = shipped.ctaButtonText,
+  ctaButtonUrl = shipped.ctaButtonUrl,
 
-  ctaDescription =
-    "Book a consultation to compare the WF-C20600, WF-C20750, and WF-C21000, review finishing options, and plan the right deployment approach.",
-
-  ctaButtonText = "Book Consultation",
-  ctaButtonUrl = "/booking",
+  benefits = DEFAULT_CONTENT.catalog.benefits,
+  services = DEFAULT_CONTENT.catalog.services,
+  faq = DEFAULT_CONTENT.catalog.faq,
 }: HomePageProps) {
   return (
     <main
@@ -74,6 +99,7 @@ export default function HomePage({
     >
       {/* HERO */}
       <Hero
+        eyebrow={heroEyebrow}
         title={heroTitle}
         description={heroDescription}
         primaryButtonText={primaryButtonText}
@@ -87,7 +113,7 @@ export default function HomePage({
         <div className="mx-auto w-full max-w-7xl px-6">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-sky-800">
-              Key Benefits
+              {benefitsEyebrow}
             </p>
 
             <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">
@@ -96,7 +122,7 @@ export default function HomePage({
           </div>
 
           <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-            {benefitItems.map((item) => (
+            {benefits.map((item) => (
               <article
                 key={item.title}
                 className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_50px_-35px_rgba(15,23,42,0.35)]"
@@ -116,7 +142,11 @@ export default function HomePage({
 
       {/* SERVICES */}
       <section className="w-full">
-        <ServicesSection />
+        <ServicesSection
+          title={servicesHeading}
+          description={servicesDescription}
+          serviceItems={services}
+        />
       </section>
 
       {/* WHY CHOOSE DOCUJET */}
@@ -124,7 +154,7 @@ export default function HomePage({
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-sky-800">
-              Why Choose DocuJet
+              {whyChooseEyebrow}
             </p>
 
             <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">
@@ -132,9 +162,7 @@ export default function HomePage({
             </h2>
 
             <p className="mt-5 max-w-xl text-base leading-7 text-slate-600">
-              DocuJet is positioned for businesses that want practical
-              guidance, suitable technology, and a smoother path from
-              exploration to support.
+              {whyChooseBody}
             </p>
           </div>
 
@@ -167,7 +195,7 @@ export default function HomePage({
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div className="max-w-2xl">
               <p className="text-sm font-semibold uppercase tracking-[0.18em] text-sky-800">
-                FAQ Preview
+                {faqEyebrow}
               </p>
 
               <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">
@@ -184,7 +212,7 @@ export default function HomePage({
           </div>
 
           <div className="mt-10 grid gap-6 md:grid-cols-3">
-            {faqItems.slice(0, 3).map((item) => (
+            {faq.slice(0, 3).map((item) => (
               <article
                 key={item.question}
                 className="rounded-[1.75rem] border border-slate-200 bg-white p-7 shadow-[0_20px_50px_-35px_rgba(15,23,42,0.35)]"

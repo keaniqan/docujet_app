@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { DEFAULT_CAPTURE_COPY } from "@/lib/chat/capture-copy";
+import type { ChatCaptureTemplates } from "@/lib/content/types";
 
 export type ChatCaptureProps = {
   /** The question that triggered the offer. Becomes the lead's interest. */
@@ -10,6 +12,13 @@ export type ChatCaptureProps = {
   sessionId: string;
   /** Why the card appeared, which decides what it says. */
   trigger: "intent" | "unanswered" | "depth";
+  /**
+   * The three cards, as the Content Management page has them.
+   *
+   * Optional so a bare render still says something sensible; supplied from the
+   * server through ChatWidget on every real page.
+   */
+  copy?: ChatCaptureTemplates;
   onDone: (reference: string) => void;
   onDismiss: () => void;
 };
@@ -39,29 +48,12 @@ export type ChatCaptureProps = {
  * required are the two `capture_chat_lead` needs to identify a person and a rep
  * needs to reach them. Phone and company are offered and optional.
  */
-const COPY: Record<ChatCaptureProps["trigger"], { title: string; body: string; cta: string }> = {
-  intent: {
-    title: "Want a figure on that?",
-    body: "Pricing is quoted by a person once we know your volumes — leave your details and someone will come back with real numbers, usually the same working day.",
-    cta: "Get a quote",
-  },
-  unanswered: {
-    title: "Let me get you a proper answer",
-    body: "That one is outside what I have on file. Leave your details and someone who knows will reply — and your question goes to the team either way.",
-    cta: "Ask a human",
-  },
-  depth: {
-    title: "Would it help to talk to someone?",
-    body: "You have asked some specific questions. If it is useful, someone can go through your setup properly rather than leaving you to piece it together here.",
-    cta: "Have someone call",
-  },
-};
-
 export default function ChatCapture({
   topic,
   cited,
   sessionId,
   trigger,
+  copy = DEFAULT_CAPTURE_COPY,
   onDone,
   onDismiss,
 }: ChatCaptureProps) {
@@ -72,7 +64,7 @@ export default function ChatCapture({
   const [error, setError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
 
-  const copy = COPY[trigger];
+  const card = copy[trigger];
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -116,8 +108,8 @@ export default function ChatCapture({
       className="rounded-2xl border border-sky-200 bg-sky-50 p-4"
       aria-label="Leave your contact details"
     >
-      <p className="text-sm font-semibold text-slate-950">{copy.title}</p>
-      <p className="mt-1 text-sm leading-6 text-slate-600">{copy.body}</p>
+      <p className="text-sm font-semibold text-slate-950">{card.title}</p>
+      <p className="mt-1 text-sm leading-6 text-slate-600">{card.body}</p>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <input
@@ -170,7 +162,7 @@ export default function ChatCapture({
           disabled={isSending}
           className="rounded-full bg-sky-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-900 disabled:opacity-40"
         >
-          {isSending ? "Sending…" : copy.cta}
+          {isSending ? "Sending…" : card.cta}
         </button>
         <button
           type="button"

@@ -54,9 +54,9 @@ export type BuildPromptOptions = {
  * passages is the load-bearing one: the corpus is small and a model asked about
  * Epson hardware has plenty of half-remembered numbers to offer instead.
  *
- * This is the default, not the law. An admin can rewrite it from
- * /admin/settings, and `buildMessages()` takes whatever is stored — so if the
- * assistant starts quoting prices, this text is the first place to look, and
+ * This is the default, not the law. A superadmin can rewrite it from
+ * /superadmin/settings/chatbot, and `buildMessages()` takes whatever is stored
+ * — so if the assistant starts quoting prices, this is the first place to look, and
  * clearing the field in the settings form restores exactly what is written
  * here. The business details and the retrieved passages are appended by code
  * either way and cannot be edited away.

@@ -10,7 +10,20 @@
 
 import { DEFAULT_SYSTEM_PROMPT } from "@/lib/chat/prompt";
 import { footerPlaceholders } from "@/lib/site-data";
-import type { SiteSettings } from "./types";
+import { MANAGED_ENV_KEYS } from "./env";
+import type { SiteSettings, SystemConfig } from "./types";
+
+/**
+ * Every managed credential, unset.
+ *
+ * Built from the key list rather than written out, so adding a key to
+ * `MANAGED_ENV_KEYS` is the whole change. Empty means "not overridden" —
+ * `resolveEnv()` falls through to `process.env`, exactly as the code did before
+ * any of this was editable.
+ */
+const NO_OVERRIDES: SystemConfig = Object.fromEntries(
+  MANAGED_ENV_KEYS.map((key) => [key, ""]),
+) as SystemConfig;
 
 export const DEFAULT_SETTINGS: SiteSettings = {
   business: {
@@ -37,11 +50,11 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     maxHistoryTurns: 8,
     rateLimitWindowMs: 60_000,
     rateLimitMaxRequests: 15,
+    // Both were constants in chat/knowledge.ts. 0.8 is a measured floor for
+    // this corpus and this embedding model, not a textbook value — see the
+    // note carried into the Chatbot Config form.
+    retrievalLimit: 6,
+    minSimilarity: 0.8,
   },
-  integrations: {
-    // Empty means "not overridden" — consumers fall back to process.env exactly
-    // as they do today. See store.ts's getSettings() merge behavior.
-    plasmicProjectId: "",
-    plasmicApiToken: "",
-  },
+  system: NO_OVERRIDES,
 };

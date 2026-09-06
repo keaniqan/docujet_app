@@ -1,5 +1,6 @@
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
+import { getContentSafe } from "@/lib/content/store";
 import { getSettingsSafe } from "@/lib/settings/store";
 
 type PublicSiteFallbackProps = {
@@ -19,7 +20,10 @@ type PublicSiteFallbackProps = {
 export default async function PublicSiteFallback({
   children,
 }: PublicSiteFallbackProps) {
-  const { business } = await getSettingsSafe();
+  const [{ business }, { social }] = await Promise.all([
+    getSettingsSafe(),
+    getContentSafe(),
+  ]);
 
   return (
     <>
@@ -31,6 +35,7 @@ export default async function PublicSiteFallback({
         email={business.email}
         address={business.address}
         hours={business.hours}
+        socialLinks={social.links}
       />
     </>
   );

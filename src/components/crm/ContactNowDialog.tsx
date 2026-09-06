@@ -49,7 +49,8 @@ const COPIED_FOR = 1800;
  * sent verbatim, and a textarea says that in a way a read-only block would not.
  */
 export default function ContactNowDialog({ lead, onClose }: ContactNowDialogProps) {
-  const { today, appointmentsFor, isSample, setFlash, viewer } = useLeadTracker();
+  const { today, appointmentsFor, isSample, setFlash, viewer, outreachTemplates } =
+    useLeadTracker();
   const [isPending, startTransition] = useTransition();
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -58,6 +59,7 @@ export default function ContactNowDialog({ lead, onClose }: ContactNowDialogProp
     appointments: appointmentsFor(lead.id),
     senderName: viewer.name,
     companyName: viewer.companyName,
+    templates: outreachTemplates,
   });
 
   // Null means untouched, so the draft follows the lead if this is reopened on

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SiteChrome from "@/components/SiteChrome";
 import SupabaseBrowserConfig from "@/components/SupabaseBrowserConfig";
+import { getContentSafe } from "@/lib/content/store";
 import { getSettingsSafe } from "@/lib/settings/store";
 
 const geistSans = Geist({
@@ -44,7 +45,7 @@ export default async function RootLayout({
   // 500 every page. Only the public-safe chat subset crosses into a Client
   // Component prop — settings also holds integration secrets, which must
   // never reach here.
-  const { chat } = await getSettingsSafe();
+  const [{ chat }, content] = await Promise.all([getSettingsSafe(), getContentSafe()]);
 
   return (
     <html
@@ -65,7 +66,9 @@ export default async function RootLayout({
             ""
           }
         />
-        <SiteChrome chatConfig={chat}>{children}</SiteChrome>
+        <SiteChrome chatConfig={chat} captureCopy={content.chatCapture}>
+          {children}
+        </SiteChrome>
       </body>
     </html>
   );

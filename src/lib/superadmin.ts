@@ -71,3 +71,38 @@ export async function getAuditLogs() {
     }),
   );
 }
+
+/**
+ * Writes one row to `audit_logs`.
+ *
+ * Lifted out of `src/app/superadmin/actions.ts`, where it was local to staff
+ * management, because settings and content edits are exactly the kind of change
+ * that needs a name against it — the values a superadmin can now reach from
+ * /superadmin/settings decide what the assistant says and where the site sends
+ * its mail.
+ *
+ * Best-effort by design: a failed audit write must not undo the change it was
+ * describing, and every caller has already succeeded by the time it runs. The
+ * failure is logged so a silently unwritten log is still visible somewhere.
+ *
+ * `details` must never carry a secret's value. Log the key name.
+ */
+export async function recordAudit(
+  actorId: string,
+  action: string,
+  targetType: string,
+  targetId: string | null,
+  details: Record<string, unknown> = {},
+) {
+  const { error } = await supabase().from("audit_logs").insert({
+    actor_id: actorId,
+    action,
+    target_type: targetType,
+    target_id: targetId,
+    details,
+  });
+
+  if (error) {
+    console.warn(`[audit] could not record ${action}:`, error.message);
+  }
+}

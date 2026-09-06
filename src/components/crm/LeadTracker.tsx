@@ -35,6 +35,7 @@ import ClearFilters from "./filters/ClearFilters";
 import FilterSelect from "./filters/FilterSelect";
 import SearchInput from "./filters/SearchInput";
 import { LeadTrackerProvider, useLeadTracker } from "./TrackerContext";
+import type { OutreachTemplates } from "@/lib/content/types";
 import { STAGE_KEYS } from "@/lib/crm/taxonomy";
 import type { Lead, LeadAppointment, LeadEvent, ViewKey } from "@/lib/crm/types";
 
@@ -51,6 +52,8 @@ export type LeadTrackerProps = {
   events?: LeadEvent[];
   /** Who is looking, and what the business is called. Signs outreach drafts off. */
   viewer?: { name: string | null; companyName: string };
+  /** The editable follow-up drafts. Falls back to the shipped ones — see the provider. */
+  outreachTemplates?: OutreachTemplates;
   /** Unanswered chat questions, for the knowledge-gap finding. */
   kbGaps?: { total: number; topTheme: string | null };
   /**
@@ -289,6 +292,7 @@ export default function LeadTracker({
   events,
   kbGaps,
   viewer,
+  outreachTemplates,
   today,
   autoLoad = true,
   defaultView = "action",
@@ -306,6 +310,7 @@ export default function LeadTracker({
       events={events}
       kbGaps={kbGaps}
       viewer={viewer}
+      outreachTemplates={outreachTemplates}
       // An empty string is Studio's "not set", not a date.
       today={today || undefined}
       autoLoad={autoLoad}

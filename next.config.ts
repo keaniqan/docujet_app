@@ -56,10 +56,12 @@ const nextConfig: NextConfig = {
   /**
    * ...and put the one it does need back in, for every entry point that embeds.
    *
-   * `/api/chat` embeds the visitor's question. `/admin/settings` renders
-   * KnowledgeManager, whose "use server" actions in src/lib/chat/actions.ts
-   * embed a Q&A entry before storing it — server actions are built into the
-   * page that imports them, so they need their own copy of the runtime.
+   * `/api/chat` embeds the visitor's question. `/superadmin/settings/chatbot`
+   * renders KnowledgeManager, whose "use server" actions in
+   * src/lib/chat/actions.ts embed a Q&A entry before storing it — server
+   * actions are built into the page that imports them, so they need their own
+   * copy of the runtime. This entry has to move whenever that page does; it was
+   * `/admin/settings` until the settings pages were split.
    *
    * A route left off this list still builds and still ships the Transformers.js
    * JavaScript, because JavaScript is all file tracing can see. It fails only
@@ -67,7 +69,7 @@ const nextConfig: NextConfig = {
    */
   outputFileTracingIncludes: {
     "/api/chat": EMBEDDING_RUNTIME_FILES,
-    "/admin/settings": EMBEDDING_RUNTIME_FILES,
+    "/superadmin/settings/chatbot": EMBEDDING_RUNTIME_FILES,
   },
 };
 

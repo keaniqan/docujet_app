@@ -58,8 +58,14 @@
  */
 
 import { daysBetween, prettyDate } from "./analytics";
+import { DEFAULT_OUTREACH_TEMPLATES } from "./outreach-templates";
 import { LOST_REASONS } from "./taxonomy";
 import type { Lead, LeadAppointment, LostReason } from "./types";
+import type {
+  OutreachTemplate,
+  OutreachTemplateId,
+  OutreachTemplates,
+} from "@/lib/content/types";
 
 export type Draft = {
   /** Email subject. Ignored when the rep is sending this by phone or chat. */
@@ -78,6 +84,14 @@ export type DraftContext = {
   senderName?: string | null;
   /** The business, for the sign-off. */
   companyName?: string;
+  /**
+   * The words, as the Content Management page has them.
+   *
+   * Optional, and falling back to what ships in `outreach-templates.ts`: a
+   * Plasmic-authored tracker has no server component above it to read the
+   * store, and the shipped drafts are the right thing to write in that case.
+   */
+  templates?: OutreachTemplates;
 };
 
 /**
@@ -120,17 +134,26 @@ function niceDate(date: string): string {
   return prettyDate(date);
 }
 
+/**
+ * What to say they asked about, when the record does not name a product.
+ *
+ * Named rather than repeated, because `draftFollowUp` compares against it to
+ * decide whether a subject line can carry the product — "Your enquiry about
+ * your printing requirements" is a sentence only a mail merge writes.
+ */
+const GENERIC_MATTER = "your printing requirements";
+
 /** "the WF-C21000" / "your printing requirements" — what to say they asked about. */
 function subjectMatter(lead: Lead): string {
   const interest = lead.interest.trim();
-  if (interest === "") return "your printing requirements";
+  if (interest === "") return GENERIC_MATTER;
 
   // The interest is free text a rep may have typed. A model number is the one
   // part of it worth quoting back verbatim; anything else is summarised, since
   // repeating a whole line like "WF-C21000 fleet for 4 branch offices" reads as
   // a database field pasted into a sentence.
   const model = interest.match(/WF-C2\d{4}/i);
-  return model ? `the ${model[0].toUpperCase()}` : "your printing requirements";
+  return model ? `the ${model[0].toUpperCase()}` : GENERIC_MATTER;
 }
 
 /** The most recent appointment of a given status, or null. */
@@ -146,6 +169,37 @@ function signOff(ctx: DraftContext): string {
 }
 
 /**
+ * Fills a template's `{name}` tokens.
+ *
+ * Unknown tokens become empty rather than staying visible: a stray `{volume}`
+ * left in an edited template is a mistake, and a blank is a smaller one than
+ * "we can discuss {volume} next week" arriving in somebody's inbox.
+ */
+function fill(text: string, vars: Record<string, string>): string {
+  return text.replace(/\{(\w+)\}/g, (_match, key: string) => vars[key] ?? "");
+}
+
+/**
+ * One template, rendered.
+ *
+ * `subjectGeneric` is used when there is no product to name — "Your enquiry"
+ * rather than "Your enquiry about your printing requirements", which is the
+ * sentence a mail merge writes and a person does not.
+ */
+function render(
+  template: OutreachTemplate,
+  vars: Record<string, string>,
+  generic: boolean,
+): { subject: string; body: string } {
+  const subject =
+    generic && template.subjectGeneric?.trim()
+      ? template.subjectGeneric
+      : template.subject;
+
+  return { subject: fill(subject, vars), body: fill(template.body, vars) };
+}
+
+/**
  * Writes the draft.
  *
  * Two cross-stage openers are checked first, because the record has something
@@ -156,12 +210,21 @@ function signOff(ctx: DraftContext): string {
  * A lost lead is answered by `reopeningDraft`, which is keyed on the cause of
  * death rather than the stage it died at — "we have changed how we quote" is
  * the right letter to a price loss whether it died at SQL or at Opportunity.
+ *
+ * The words come from `ctx.templates`, which the Content Management page can
+ * edit; everything below decides *which* of them to use, and that stays here.
+ * `basis` is not editable and is not customer-facing — it is this module
+ * explaining itself to the rep, and it has to describe the record rather than
+ * repeat a stored sentence.
  */
 export function draftFollowUp(lead: Lead, ctx: DraftContext): Draft {
+  const templates = ctx.templates ?? DEFAULT_OUTREACH_TEMPLATES;
   const name = firstName(lead.name);
   const greeting = name ? `Hi ${name},` : "Hello,";
   const matter = subjectMatter(lead);
   const sign = signOff(ctx);
+  const generic = matter === GENERIC_MATTER;
+  const base = { greeting, matter, sign };
 
   const upcoming = ctx.appointments.find(
     (a) => a.status !== "Cancelled" && daysBetween(ctx.today, a.date) >= 0,
@@ -175,14 +238,17 @@ export function draftFollowUp(lead: Lead, ctx: DraftContext): Draft {
   //    sense at any stage, and it is the one most likely to stop a no-show.
   if (upcoming) {
     return {
-      subject: `Confirming ${niceDate(upcoming.date)} — ${upcoming.type}`,
-      body:
-        `${greeting}\n\n` +
-        `Just confirming our ${upcoming.type.toLowerCase()} on ${niceDate(upcoming.date)} at ` +
-        `${upcoming.time}. I will walk you through ${matter} and answer anything you want to ` +
-        `dig into.\n\n` +
-        `If the time no longer suits, tell me what does and I will move it.\n\n` +
-        `Thanks,\n${sign}`,
+      ...render(
+        templates.upcomingMeeting,
+        {
+          ...base,
+          type: upcoming.type,
+          typeLower: upcoming.type.toLowerCase(),
+          date: niceDate(upcoming.date),
+          time: upcoming.time,
+        },
+        generic,
+      ),
       basis: `They have a ${upcoming.type.toLowerCase()} booked for ${niceDate(upcoming.date)}.`,
     };
   }
@@ -192,33 +258,33 @@ export function draftFollowUp(lead: Lead, ctx: DraftContext): Draft {
   //    whatever stage they are sitting at.
   if (cancelled && live.length === 0) {
     return {
-      subject: "Finding another time",
-      body:
-        `${greeting}\n\n` +
-        `We had a ${cancelled.type.toLowerCase()} booked that did not go ahead — no problem at ` +
-        `all. If you are still looking at ${matter}, I am happy to find a time that works ` +
-        `better, or to send something over you can read at your own pace instead.\n\n` +
-        `Which would you prefer?\n\n` +
-        `Best,\n${sign}`,
+      ...render(
+        templates.cancelledMeeting,
+        { ...base, typeLower: cancelled.type.toLowerCase(), date: niceDate(cancelled.date) },
+        generic,
+      ),
       basis: `Their ${cancelled.type.toLowerCase()} on ${niceDate(cancelled.date)} was cancelled and nothing was booked in its place.`,
     };
   }
 
-  if (lead.lost) return reopeningDraft(lead, ctx, greeting, matter, sign);
+  if (lead.lost) return reopeningDraft(lead, ctx, base, generic);
 
   switch (lead.stage) {
     case "mql":
-      return promotionDraft(lead, ctx, greeting, matter, sign);
+      return promotionDraft(lead, ctx, base, generic);
     case "sql":
-      return negotiationDraft(lead, ctx, greeting, matter, sign);
+      return negotiationDraft(lead, ctx, base, generic);
     case "opportunity":
-      return closingDraft(lead, ctx, greeting, matter, sign);
+      return closingDraft(lead, ctx, base, generic);
     case "customer":
-      return checkInDraft(lead, ctx, greeting, matter, sign);
+      return checkInDraft(lead, ctx, base, generic);
     default:
-      return qualifyingDraft(lead, ctx, greeting, matter, sign);
+      return qualifyingDraft(lead, ctx, base, generic);
   }
 }
+
+/** The three tokens every template gets. */
+type BaseVars = { greeting: string; matter: string; sign: string };
 
 /**
  * Lead — a first reply that asks rather than pitches.
@@ -228,32 +294,27 @@ export function draftFollowUp(lead: Lead, ctx: DraftContext): Draft {
  * message anyway. It asks the two questions that decide whether they are a
  * buyer, because that is the only thing an unqualified lead is for.
  *
- * The chat opener lives here and only here: a visitor who typed a question into
- * the site and left their details has told us what they want, and quoting it
- * back is the strongest opener available at the one stage where nobody has
+ * The chat opener is used here and only here: a visitor who typed a question
+ * into the site and left their details has told us what they want, and quoting
+ * it back is the strongest opener available at the one stage where nobody has
  * spoken to them yet.
  */
 function qualifyingDraft(
   lead: Lead,
   ctx: DraftContext,
-  greeting: string,
-  matter: string,
-  sign: string,
+  base: BaseVars,
+  generic: boolean,
 ): Draft {
+  const templates = ctx.templates ?? DEFAULT_OUTREACH_TEMPLATES;
+
   if (lead.chatTopic && lead.lastContactAt === null) {
     const unanswered = lead.cited.length === 0;
     return {
-      subject: "Your question about our printers",
-      body:
-        `${greeting}\n\n` +
-        `You asked us: "${lead.chatTopic}"\n\n` +
-        (unanswered
-          ? `That one is outside what our site assistant could answer, so it came to me directly. ` +
-            `I can give you a proper answer — and if it is easier, we can go through it on a ` +
-            `quick call.\n\n`
-          : `I wanted to follow that up properly rather than leave you with the short version. ` +
-            `Happy to go through it on a quick call, or to answer here if that is easier.\n\n`) +
-        `Best,\n${sign}`,
+      ...render(
+        unanswered ? templates.qualifyingChatUnanswered : templates.qualifyingChatAnswered,
+        { ...base, question: lead.chatTopic },
+        generic,
+      ),
       basis: unanswered
         ? "They asked the site assistant something it could not answer, and left their details anyway."
         : "They left their details in the chat panel after asking a specific question.",
@@ -262,16 +323,7 @@ function qualifyingDraft(
 
   const age = lead.createdAt ? Math.max(0, daysBetween(lead.createdAt, ctx.today)) : 0;
   return {
-    subject:
-      matter === "your printing requirements" ? "Your enquiry" : `Your enquiry about ${matter}`,
-    body:
-      `${greeting}\n\n` +
-      `Thanks for getting in touch about ${matter}. I look after enquiries like yours, and I ` +
-      `wanted to introduce myself rather than send you a brochure.\n\n` +
-      `Could you tell me roughly what your current print volumes look like, and how many ` +
-      `people would be using the machine? That is usually enough for me to point you at the ` +
-      `right model.\n\n` +
-      `Best,\n${sign}`,
+    ...render(templates.qualifyingIntro, base, generic),
     basis:
       age > 0
         ? `Nobody has contacted them since they arrived ${age} days ago.`
@@ -290,10 +342,11 @@ function qualifyingDraft(
 function promotionDraft(
   lead: Lead,
   ctx: DraftContext,
-  greeting: string,
-  matter: string,
-  sign: string,
+  base: BaseVars,
+  generic: boolean,
 ): Draft {
+  void lead;
+  const templates = ctx.templates ?? DEFAULT_OUTREACH_TEMPLATES;
   const met = latest(ctx.appointments, "Completed");
 
   // A meeting already happened and the stage never moved past MQL. Sending a
@@ -301,34 +354,22 @@ function promotionDraft(
   if (met) {
     const since = Math.max(0, daysBetween(met.date, ctx.today));
     return {
-      subject: `Following up on our ${met.type.toLowerCase()}`,
-      body:
-        `${greeting}\n\n` +
-        `Thanks again for your time ${since <= 2 ? "the other day" : `on ${niceDate(met.date)}`}. ` +
-        `I wanted to check what you made of ${matter}, and whether anything came up afterwards ` +
-        `that I can help with.\n\n` +
-        `If it would be useful, I can put together the next step for your team to review.\n\n` +
-        `Best,\n${sign}`,
+      ...render(
+        templates.promotionAfterMeeting,
+        {
+          ...base,
+          typeLower: met.type.toLowerCase(),
+          when: since <= 2 ? "the other day" : `on ${niceDate(met.date)}`,
+          date: niceDate(met.date),
+        },
+        generic,
+      ),
       basis: `They completed a ${met.type.toLowerCase()} ${since} days ago and are still at MQL.`,
     };
   }
 
   return {
-    subject:
-      matter === "your printing requirements"
-        ? "What we could do for you"
-        : `A closer look at ${matter}`,
-    body:
-      `${greeting}\n\n` +
-      `We have not spoken properly yet, so rather than chase you I thought I would just show ` +
-      `you what we do.\n\n` +
-      `We fit and maintain office print systems — the machines, the servicing and the ` +
-      `consumables — so there is one number to ring when something stops working. Most of our ` +
-      `customers came to us because they were managing three suppliers for that.\n\n` +
-      `I can send over a short overview of the models that suit ${matter}, with what each one ` +
-      `is actually good at. Nothing to fill in and no commitment — have a read, and tell me if ` +
-      `any of it is relevant to you.\n\n` +
-      `Best,\n${sign}`,
+    ...render(templates.promotionIntro, base, generic),
     basis: "They fit who we sell to, but have not been shown the product yet.",
   };
 }
@@ -348,34 +389,19 @@ function promotionDraft(
 function negotiationDraft(
   lead: Lead,
   ctx: DraftContext,
-  greeting: string,
-  matter: string,
-  sign: string,
+  base: BaseVars,
+  generic: boolean,
 ): Draft {
+  void lead;
+  const templates = ctx.templates ?? DEFAULT_OUTREACH_TEMPLATES;
   const met = latest(ctx.appointments, "Completed");
-  const opener = met
-    ? `Thanks again for your time on ${niceDate(met.date)}. Now I have a picture of what you ` +
-      `are running, I can put some real numbers against it.`
-    : `Now I understand what you are running, the useful next step is numbers rather than ` +
-      `another conversation about features.`;
 
   return {
-    subject:
-      matter === "your printing requirements"
-        ? "Putting some numbers together"
-        : `Next steps on ${matter}`,
-    body:
-      `${greeting}\n\n` +
-      `${opener}\n\n` +
-      `I would rather quote against your actual volumes than hand you a list price — that is ` +
-      `usually the difference between a figure that looks fine now and one that still looks ` +
-      `fine in a year. Tell me roughly what you print in a month and how many people are on ` +
-      `it, and I will put a proper costing together with servicing and consumables included, ` +
-      `so there is nothing hiding underneath it.\n\n` +
-      `It is also worth seeing one run before you decide. I could do Tuesday or Thursday ` +
-      `afternoon — say which is easier and I will arrange it. If neither works, name a day and ` +
-      `I will fit around you.\n\n` +
-      `Best,\n${sign}`,
+    ...render(
+      met ? templates.negotiationAfterMeeting : templates.negotiationCold,
+      { ...base, date: met ? niceDate(met.date) : "" },
+      generic,
+    ),
     basis: met
       ? `Qualified, and met with us on ${niceDate(met.date)}. The next step is a costed proposal.`
       : "Qualified with no meeting booked. The next step is a costed proposal and a date.",
@@ -394,25 +420,16 @@ function negotiationDraft(
 function closingDraft(
   lead: Lead,
   ctx: DraftContext,
-  greeting: string,
-  matter: string,
-  sign: string,
+  base: BaseVars,
+  generic: boolean,
 ): Draft {
+  const templates = ctx.templates ?? DEFAULT_OUTREACH_TEMPLATES;
   const silent = lead.lastContactAt
     ? Math.max(0, daysBetween(lead.lastContactAt.slice(0, 10), ctx.today))
     : null;
 
   return {
-    subject: matter === "your printing requirements" ? "Where we stand" : `Where we stand on ${matter}`,
-    body:
-      `${greeting}\n\n` +
-      `I wanted to check you have everything you need from us on ${matter} — and that what we ` +
-      `sent answers the question your side is actually asking, rather than the one I assumed.\n\n` +
-      `If something is still in the way, it is usually easier to tell me than to work around ` +
-      `it. Whether that is the figure, the timing, or somebody internally who has not seen it ` +
-      `yet, I have some room to move on all three.\n\n` +
-      `What would need to happen for you to be comfortable going ahead?\n\n` +
-      `Best,\n${sign}`,
+    ...render(templates.closing, base, generic),
     basis:
       silent === null
         ? "At Opportunity with no logged contact — the proposal is out and unacknowledged."
@@ -435,28 +452,16 @@ function closingDraft(
 function checkInDraft(
   lead: Lead,
   ctx: DraftContext,
-  greeting: string,
-  matter: string,
-  sign: string,
+  base: BaseVars,
+  generic: boolean,
 ): Draft {
+  const templates = ctx.templates ?? DEFAULT_OUTREACH_TEMPLATES;
   const since = lead.lastContactAt
     ? Math.max(0, daysBetween(lead.lastContactAt.slice(0, 10), ctx.today))
     : null;
 
   return {
-    subject: "How is everything running?",
-    body:
-      `${greeting}\n\n` +
-      `No agenda with this one — I wanted to check the machine is doing what you bought it ` +
-      `for. Any jams, any drop in quality, anything the team keeps grumbling about?\n\n` +
-      `If there is something you would change about how we have handled it, I would genuinely ` +
-      `rather hear it than not. That includes the boring parts: response times, how the ` +
-      `consumables turn up, whoever you end up speaking to when you ring.\n\n` +
-      `We have also added a few models since you bought. If your volumes have moved or you are ` +
-      `opening somewhere new, it is worth five minutes before you commit to anything.\n\n` +
-      `And if anyone you know is putting up with a printer they hate, send them my way — it is ` +
-      `how most of our good customers found us.\n\n` +
-      `Best,\n${sign}`,
+    ...render(templates.checkIn, base, generic),
     basis:
       since === null
         ? "A customer with no logged contact since the sale."
@@ -480,64 +485,35 @@ function checkInDraft(
 function reopeningDraft(
   lead: Lead,
   ctx: DraftContext,
-  greeting: string,
-  matter: string,
-  sign: string,
+  base: BaseVars,
+  generic: boolean,
 ): Draft {
+  const templates = ctx.templates ?? DEFAULT_OUTREACH_TEMPLATES;
   const sinceClosed = lead.lastContactAt
     ? Math.max(0, daysBetween(lead.lastContactAt.slice(0, 10), ctx.today))
     : null;
   const gap = sinceClosed === null ? "a while" : `${sinceClosed} days`;
   const reason = lead.lostReason;
 
-  const byCause: Partial<Record<LostReason, { subject: string; middle: string; basis: string }>> = {
+  const byCause: Partial<Record<LostReason, { id: OutreachTemplateId; basis: string }>> = {
     price: {
-      subject: "Worth another look?",
-      middle:
-        `When we last spoke about ${matter}, the figure was the sticking point — and that was ` +
-        `a fair objection rather than a brush-off.\n\n` +
-        `We have changed how we put deals like yours together since then. I would rather show ` +
-        `you what that looks like against your own volumes than simply tell you it is better, ` +
-        `so if you are open to it, send me a rough monthly figure and I will work it out.`,
+      id: "reopeningPrice",
       basis: "Lost on price. Only send this if how we quote has actually changed since.",
     },
     competitor: {
-      subject: "How has it worked out?",
-      middle:
-        `You went a different way on ${matter} when we last spoke, which was entirely ` +
-        `reasonable — I wanted to see how it has held up.\n\n` +
-        `If it is doing the job, genuinely good. If the servicing has turned out to be the weak ` +
-        `part, that is usually where we get called back in, and I am happy to look at it with ` +
-        `no obligation either way.`,
+      id: "reopeningCompetitor",
       basis: "Lost to a competitor. The useful moment is after the honeymoon, not during it.",
     },
     timing: {
-      subject: "Is the timing better now?",
-      middle:
-        `We talked about ${matter} a while back and the timing was wrong — nothing to do with ` +
-        `the fit.\n\n` +
-        `It has been ${gap}, so I wanted to check whether the picture has changed at your end. ` +
-        `If it has not, tell me when to come back and I will leave you alone until then.`,
+      id: "reopeningTiming",
       basis: "Lost on timing — the most reopenable cause there is. Check the date is actually right.",
     },
     budget_cut: {
-      subject: "Checking in on the budget",
-      middle:
-        `Last time we spoke about ${matter} the budget had gone, which happens and was nobody's ` +
-        `fault.\n\n` +
-        `New year, new numbers — I wanted to ask whether it is back on the list. If it is, I can ` +
-        `put something together that fits whatever the figure actually is, rather than what we ` +
-        `discussed before.`,
+      id: "reopeningBudgetCut",
       basis: "Lost to a budget cut. Send at the start of their fiscal year, not before it.",
     },
     no_response: {
-      subject: "One last try",
-      middle:
-        `I never heard back about ${matter}, which usually means the moment passed or it landed ` +
-        `at a busy time.\n\n` +
-        `No hard feelings either way — but if it is still something you are thinking about, a ` +
-        `one-line reply is enough and I will pick it up from there. If not, say so and I will ` +
-        `stop cluttering your inbox.`,
+      id: "reopeningNoResponse",
       basis: "They went silent. Keep it short, and make saying no as easy as saying yes.",
     },
   };
@@ -547,13 +523,7 @@ function reopeningDraft(
   if (!chosen) {
     const cause = reason ? LOST_REASONS[reason].label.toLowerCase() : null;
     return {
-      subject: "Checking back in",
-      body:
-        `${greeting}\n\n` +
-        `We spoke about ${matter} a while ago and it did not go ahead at the time.\n\n` +
-        `I wanted to check whether anything has changed at your end — and if it has not, that ` +
-        `is a perfectly good answer.\n\n` +
-        `Best,\n${sign}`,
+      ...render(templates.reopeningNeutral, { ...base, gap }, generic),
       basis: cause
         ? `Closed as "${cause}", which was a targeting call on our side rather than theirs. Re-approach only if that has changed.`
         : "Closed with no reason recorded, so there is nothing specific to re-approach on.",
@@ -561,8 +531,7 @@ function reopeningDraft(
   }
 
   return {
-    subject: chosen.subject,
-    body: `${greeting}\n\n${chosen.middle}\n\nBest,\n${sign}`,
+    ...render(templates[chosen.id], { ...base, gap }, generic),
     basis: chosen.basis,
   };
 }
