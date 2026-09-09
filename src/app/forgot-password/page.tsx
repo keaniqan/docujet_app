@@ -19,7 +19,12 @@ export default function ForgotPasswordPage() {
     try {
       const supabase = createClient();
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        // Keep local development convenient while making production recovery
+        // independent of Supabase's Site URL fallback configuration.
+        redirectTo:
+          window.location.hostname === "localhost"
+            ? `${window.location.origin}/auth/callback`
+            : "https://docujet.vercel.app/auth/callback",
       });
       if (resetError) throw resetError;
       setMessage("If an account exists for that email, we sent a password reset link.");
