@@ -26,15 +26,19 @@ function readableAppointmentId(id: string) {
 }
 
 function normalizePhone(phone: string) {
-  const normalized = phone.trim().replace(/[\s().-]/g, "");
-  if (!normalized.startsWith("+")) {
-    throw new Error("Use the customer's international WhatsApp number, including the + country code.");
+  const raw = phone.trim();
+  const digits = raw.replace(/\D/g, "");
+  const countryCode = (process.env.WHATSAPP_DEFAULT_COUNTRY_CODE?.trim() || "60").replace(/\D/g, "");
+  const international = raw.startsWith("+")
+    ? digits
+    : digits.startsWith("0")
+      ? `${countryCode}${digits.slice(1)}`
+      : digits;
+
+  if (!/^\d{8,15}$/.test(international)) {
+    throw new Error("Enter a valid WhatsApp number, for example 01123456789 or +601123456789.");
   }
-  const digits = normalized.slice(1);
-  if (!/^\d{8,15}$/.test(digits)) {
-    throw new Error("Use the customer's international WhatsApp number, including the + country code.");
-  }
-  return normalized;
+  return `+${international}`;
 }
 
 export async function sendBookingWhatsApp(booking: BookingNotification) {

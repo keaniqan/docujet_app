@@ -272,15 +272,26 @@ export default function BookingForm({
           htmlFor="phoneNumber"
           error={errors.phoneNumber}
           input={
-            <input
-              id="phoneNumber"
-              name="phoneNumber"
-              value={values.phoneNumber}
-              onChange={(event) =>
-                updateField("phoneNumber", event.target.value)
-              }
-              className={inputClassName}
-            />
+            <div className="flex">
+              <span className="inline-flex items-center rounded-l-2xl border border-r-0 border-slate-300 bg-slate-100 px-3 text-sm font-semibold text-slate-600">
+                +60
+              </span>
+              <input
+                id="phoneNumber"
+                name="phoneNumber"
+                type="tel"
+                inputMode="numeric"
+                value={values.phoneNumber.replace(/^\+60/, "")}
+                onChange={(event) =>
+                  updateField("phoneNumber", (() => {
+                    const local = event.target.value.replace(/\D/g, "").replace(/^0+/, "");
+                    return local ? `+60${local}` : "";
+                  })())
+                }
+                placeholder="1123456789"
+                className={`${inputClassName} rounded-l-none`}
+              />
+            </div>
           }
         />
         <Field
