@@ -130,9 +130,9 @@ export default function LoginPage({
                 <input type="checkbox" className="h-4 w-4 rounded border-slate-300" />
                 Remember me
               </label>
-              <span className="text-sm text-sky-800">
-                Forgot password
-              </span>
+              <Link href="/forgot-password" className="text-sm text-sky-800 underline-offset-2 hover:underline">
+                Forgot password?
+              </Link>
             </div>
 
             {errorMessage ? (
