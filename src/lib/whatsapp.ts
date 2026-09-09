@@ -1,13 +1,9 @@
 /**
  * The booking confirmation over WhatsApp.
  *
- * Unlike the email, the message text is not in this repository and cannot be
- * moved into the Content Management page: Twilio requires a pre-approved
- * Content Template, referenced by `TWILIO_CONTENT_SID`, and the words live in
- * the Twilio console. What this file owns is which value lands in which numbered
- * placeholder — and that mapping is a contract with whoever wrote the template,
- * so it stays code rather than becoming an editable field that could silently
- * put the appointment time where the customer's name belongs.
+ * Sends the booking confirmation directly through Meta's WhatsApp Cloud API.
+ * The template name and language are configurable because Meta owns the
+ * approved template content; the parameter order remains a code contract.
  */
 
 import { demandEnv, resolveEnvMany } from "@/lib/settings/resolve";
@@ -38,57 +34,58 @@ function normalizePhone(phone: string) {
   if (!/^\d{8,15}$/.test(international)) {
     throw new Error("Enter a valid WhatsApp number, for example 01123456789 or +601123456789.");
   }
-  return `+${international}`;
+  return international;
 }
 
 export async function sendBookingWhatsApp(booking: BookingNotification) {
-  // One settings read for all four, resolving database-first and falling back
+  // One settings read for all five, resolving database-first and falling back
   // to `.env` — see settings/env.ts.
   const config = await resolveEnvMany([
-    "TWILIO_ACCOUNT_SID",
-    "TWILIO_AUTH_TOKEN",
-    "TWILIO_WHATSAPP_FROM",
-    "TWILIO_CONTENT_SID",
+    "WHATSAPP_ACCESS_TOKEN",
+    "WHATSAPP_PHONE_NUMBER_ID",
+    "WHATSAPP_TEMPLATE_NAME",
+    "WHATSAPP_TEMPLATE_LANGUAGE",
   ] as const);
 
   demandEnv(config, [
-    "TWILIO_ACCOUNT_SID",
-    "TWILIO_AUTH_TOKEN",
-    "TWILIO_WHATSAPP_FROM",
-    "TWILIO_CONTENT_SID",
+    "WHATSAPP_ACCESS_TOKEN",
+    "WHATSAPP_PHONE_NUMBER_ID",
+    "WHATSAPP_TEMPLATE_NAME",
+    "WHATSAPP_TEMPLATE_LANGUAGE",
   ]);
 
-  const accountSid = config.TWILIO_ACCOUNT_SID;
-  const from = config.TWILIO_WHATSAPP_FROM;
   const to = normalizePhone(booking.phoneNumber);
-  const form = new URLSearchParams({
-    From: from.startsWith("whatsapp:") ? from : `whatsapp:${from}`,
-    To: to.startsWith("whatsapp:") ? to : `whatsapp:${to}`,
-    ContentSid: config.TWILIO_CONTENT_SID,
-    ContentVariables: JSON.stringify({
-      1: booking.fullName,
-      2: booking.appointmentType,
-      3: booking.preferredDate,
-      4: booking.preferredTime,
-      5: readableAppointmentId(booking.appointmentId),
-    }),
-  });
-
-  const response = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${accountSid}:${config.TWILIO_AUTH_TOKEN}`).toString("base64")}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: form.toString(),
-      cache: "no-store",
+  const graphVersion = process.env.WHATSAPP_GRAPH_API_VERSION?.trim() || "v25.0";
+  const response = await fetch(`https://graph.facebook.com/${graphVersion}/${config.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.WHATSAPP_ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to,
+      type: "template",
+      template: {
+        name: config.WHATSAPP_TEMPLATE_NAME,
+        language: { code: config.WHATSAPP_TEMPLATE_LANGUAGE },
+        components: [{
+          type: "body",
+          // This matches the three variables in the supplied Meta template:
+          // customer name, booking reference, and appointment date.
+          parameters: [
+            { type: "text", text: booking.fullName },
+            { type: "text", text: readableAppointmentId(booking.appointmentId) },
+            { type: "text", text: booking.preferredDate },
+          ],
+        }],
+      },
+    }),
+    cache: "no-store",
+  });
 
   if (!response.ok) {
     const detail = await response.text();
-    throw new Error(`Twilio rejected the WhatsApp message (${response.status}): ${detail.slice(0, 300)}`);
+    throw new Error(`Meta rejected the WhatsApp message (${response.status}): ${detail.slice(0, 300)}`);
   }
 }

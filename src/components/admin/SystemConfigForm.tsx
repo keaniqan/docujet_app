@@ -172,10 +172,10 @@ export default function SystemConfigForm({ managed, connection }: SystemConfigFo
         }
       >
         <div className="grid gap-4 md:grid-cols-2">
-          {entry("TWILIO_ACCOUNT_SID", "Account SID")}
-          {entry("TWILIO_AUTH_TOKEN", "Auth token")}
-          {entry("TWILIO_WHATSAPP_FROM", "Sending number", "With the + country code.")}
-          {entry("TWILIO_CONTENT_SID", "Content template SID")}
+          {entry("WHATSAPP_ACCESS_TOKEN", "Meta access token")}
+          {entry("WHATSAPP_PHONE_NUMBER_ID", "Phone number ID")}
+          {entry("WHATSAPP_TEMPLATE_NAME", "Template name")}
+          {entry("WHATSAPP_TEMPLATE_LANGUAGE", "Template language", "For example, en_US.")}
         </div>
       </Panel>
 

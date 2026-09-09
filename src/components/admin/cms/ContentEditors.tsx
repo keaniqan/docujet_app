@@ -296,10 +296,10 @@ export function CatalogEditor({ catalog }: { catalog: SiteContent["catalog"] }) 
 
 export function BookingEmailEditor({
   bookingEmail,
-  twilioContentSid,
+  whatsappTemplateName,
 }: {
   bookingEmail: SiteContent["bookingEmail"];
-  twilioContentSid: string;
+  whatsappTemplateName: string;
 }) {
   return (
     <ActionForm
@@ -341,7 +341,7 @@ export function BookingEmailEditor({
             console rather than in this app. This site sends five values into it, in this order:
             name, appointment type, date, time, booking reference. The template in use is{" "}
             <code className="rounded bg-white px-1 py-0.5 font-mono">
-              {twilioContentSid || "not configured"}
+              {whatsappTemplateName || "not configured"}
             </code>
             , which you can change on the System Config tab.
           </p>

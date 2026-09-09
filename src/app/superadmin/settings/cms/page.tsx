@@ -66,7 +66,7 @@ export default async function ContentManagementPage() {
 
   // Shown read-only beside the booking email, so the WhatsApp side of the same
   // confirmation is not simply missing from a page about lead contact.
-  const twilioContentSid = await resolveEnv("TWILIO_CONTENT_SID");
+  const whatsappTemplateName = await resolveEnv("WHATSAPP_TEMPLATE_NAME");
 
   return (
     <div className="space-y-6 p-5 md:p-8">
@@ -91,7 +91,7 @@ export default async function ContentManagementPage() {
       <CatalogEditor catalog={content.catalog} />
       <BookingEmailEditor
         bookingEmail={content.bookingEmail}
-        twilioContentSid={twilioContentSid}
+        whatsappTemplateName={whatsappTemplateName}
       />
       <ChatCaptureEditor chatCapture={content.chatCapture} />
       <OutreachEditor outreach={content.outreach} />

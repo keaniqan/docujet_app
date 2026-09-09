@@ -57,6 +57,13 @@ The template includes a plain-text fallback. Email clients control whether nativ
 invitation buttons appear. Test message generation without sending email with
 `npx tsx --test src/lib/booking-email.test.ts`.
 
+WhatsApp booking notifications use Meta's WhatsApp Cloud API directly. Configure
+`WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_TEMPLATE_NAME`, and
+`WHATSAPP_TEMPLATE_LANGUAGE` in the server environment (or Superadmin System
+Settings). The current template expects three body values in this order: customer
+name, booking reference, and appointment date. Keep the access token secret and
+rotate it immediately if it is ever exposed.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
