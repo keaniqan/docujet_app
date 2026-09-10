@@ -46,12 +46,12 @@ export default function BookingPage({
                 discuss, and your preferred timing.
               </p>
               <p>
-                Booking requests are saved to Supabase, so the form keeps its
-                same experience while connecting directly to the database.
+                Choose an available time in Malaysia time (UTC+8). Times that
+                have already passed cannot be booked.
               </p>
               <p>
-                You still get the same clean frontend, but now the submission
-                creates a real appointment record.
+                Your appointment is confirmed once your booking is saved.
+                Please wait for the confirmation message before leaving this page.
               </p>
             </div>
           </div>

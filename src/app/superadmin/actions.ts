@@ -20,6 +20,43 @@ export async function toggleStaffUserFromForm(formData: FormData): Promise<void>
   await toggleStaffUser(undefined, formData);
 }
 
+export async function deleteStaffUser(
+  _previousState: SuperadminActionState = initialState,
+  formData: FormData,
+): Promise<SuperadminActionState> {
+  void _previousState;
+  try {
+    const actor = await requireActionSuperadmin();
+    const userId = String(formData.get("user_id") ?? "").trim().toLowerCase();
+    if (!userId) return { error: "Choose a staff account to delete.", success: null };
+    if (userId === actor.id.toLowerCase()) return { error: "You cannot delete your own account.", success: null };
+    if (formData.get("confirm_delete") !== "yes") {
+      return { error: "Confirm that you want to permanently delete this staff account.", success: null };
+    }
+    if (!isSupabaseConfigured()) {
+      return { error: "Staff management is not configured on the server.", success: null };
+    }
+
+    const client = supabase();
+    const { data: profile, error: profileError } = await client
+      .from("user_profiles").select("id, role").eq("id", userId).maybeSingle();
+    if (profileError) throw profileError;
+    if (!profile || (profile.role !== "admin" && profile.role !== "superadmin")) {
+      return { error: "This staff account no longer exists or has no staff role.", success: null };
+    }
+
+    // Delete Auth first: the profile cascades, while business records retain
+    // their history through the existing ON DELETE SET NULL foreign keys.
+    const { error } = await client.auth.admin.deleteUser(userId);
+    if (error) throw error;
+    await recordAudit(actor.id, "staff.deleted", "user", userId, { role: profile.role });
+    revalidatePath("/superadmin/users");
+    return { error: null, success: "Staff account permanently deleted." };
+  } catch (cause) {
+    return { error: cause instanceof Error ? cause.message : "Could not delete the staff account.", success: null };
+  }
+}
+
 export async function createStaffUser(
   _previousState: SuperadminActionState = initialState,
   formData: FormData,
